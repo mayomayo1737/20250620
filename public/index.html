@@ -1,308 +1,262 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chat+Drawing App</title>
-    <style>
-      .chat {
-        display: flex;
-        flex-direction: column;
-        height: 40vh;
-        margin-bottom: 10px;
-      }
-      .messages {
-        flex: 1;
-        overflow-y: auto;
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        border: 1px solid #ccc;
-      }
-      .form {
-        display: flex;
-      }
-      .input {
-        flex: 1;
-        padding: 10px;
-        border: 1px solid #ccc;
-      }
-      .submit {
-        padding: 10px;
-        border: 1px solid #ccc;
-        background: #eee;
-        cursor: pointer;
-      }
-      #toolbar {
-        margin: 10px 0;
-      }
-      #toolbar > * {
-        margin-right: 10px;
-      }
-      .stamp-btn {
-        font-size: 24px;
-        cursor: pointer;
-        background: transparent;
-        border: none;
-      }
-      .selected {
-        outline: 2px solid #333;
-      }
-      #eraserBtn.active {
-        background: #faa;
-      }
-    </style>
-  </head>
-  <body>
-    <!-- チャット領域 -->
-    <div class="chat">
-      <ul class="messages"></ul>
-      <form class="form">
-        <input class="input" autocomplete="off" />
-        <button class="submit">Send</button>
-      </form>
-    </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat+Drawing App</title>
+  <style>
+    .chat {
+      display: flex;
+      flex-direction: column;
+      height: 40vh;
+      margin-bottom: 10px;
+    }
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      border: 1px solid #ccc;
+    }
+    .form { display: flex; }
+    .input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+    .submit {
+      padding: 10px;
+      border: 1px solid #ccc;
+      background: #eee;
+      cursor: pointer;
+    }
+    #toolbar { margin: 10px 0; }
+    #toolbar > * { margin-right: 10px; }
+    .stamp-btn {
+      font-size: 24px;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+    }
+    .selected { outline: 2px solid #333; }
+    #eraserBtn.active { background: #faa; }
+  </style>
+</head>
+<body>
+  <!-- チャット -->
+  <div class="chat">
+    <ul class="messages"></ul>
+    <form class="form">
+      <input class="input" autocomplete="off" />
+      <button class="submit">Send</button>
+    </form>
+  </div>
 
-    <!-- ツールバー -->
-    <div id="toolbar">
-      <!-- 色選択 -->
-      <label>
-        線の色:
-        <input type="color" id="colorPicker" value="#000000" />
-      </label>
-      <!-- スタンプ -->
-      <span>スタンプ:</span>
-      <button class="stamp-btn" data-stamp="🌸">🌸</button>
-      <button class="stamp-btn" data-stamp="⭐">⭐</button>
-      <button class="stamp-btn" data-stamp="👍">👍</button>
-      <!-- 消しゴム -->
-      <button id="eraserBtn">消しゴム</button>
-      <!-- クリア -->
-      <button id="clearBtn">クリア</button>
-    </div>
+  <!-- ツールバー -->
+  <div id="toolbar">
+    <label>
+      線の色:
+      <input type="color" id="colorPicker" value="#000000"/>
+    </label>
+    <span>スタンプ:</span>
+    <button class="stamp-btn" data-stamp="🌸">🌸</button>
+    <button class="stamp-btn" data-stamp="⭐">⭐</button>
+    <button class="stamp-btn" data-stamp="👍">👍</button>
+    <button id="eraserBtn">消しゴム</button>
+    <button id="clearBtn">クリア</button>
+  </div>
 
-    <!-- 描画キャンバス -->
-    <canvas
-      id="canvas"
-      width="600"
-      height="600"
-      style="border: solid 1px black"
-    ></canvas>
+  <!-- 描画キャンバス -->
+  <canvas id="canvas" width="600" height="600"
+          style="border:1px solid black"></canvas>
 
-    <script>
-      function main() {
-        const host = location.origin.replace(/^http/, 'ws');
-        const ws = new WebSocket(host + '/ws');
-        const myId = crypto.randomUUID().substr(0, 8);
+  <script>
+    function main(){
+      const host = location.origin.replace(/^http/, 'ws')
+      const ws = new WebSocket(host + '/ws')
+      const myId = crypto.randomUUID().substr(0,8)
 
-        // DOM取得
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const colorPicker = document.getElementById('colorPicker');
-        const stamps = document.querySelectorAll('.stamp-btn');
-        const eraserBtn = document.getElementById('eraserBtn');
-        const clearBtn = document.getElementById('clearBtn');
+      // DOM
+      const canvas = document.getElementById('canvas')
+      const ctx = canvas.getContext('2d')
+      const colorPicker = document.getElementById('colorPicker')
+      const stamps = document.querySelectorAll('.stamp-btn')
+      const eraserBtn = document.getElementById('eraserBtn')
+      const clearBtn = document.getElementById('clearBtn')
 
-        // ツール状態
-        let tool = 'pen';         // 'pen' | 'stamp' | 'eraser'
-        let currentStamp = null;
-        let drawing = false;
+      // 状態
+      let tool = 'pen'        // 'pen' | 'stamp' | 'eraser'
+      let currentStamp = null
+      let drawing = false
 
-        // 初期設定
-        ctx.lineWidth = 5;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = colorPicker.value;
+      // 初期設定
+      ctx.lineWidth = 5
+      ctx.lineCap = 'round'
+      ctx.strokeStyle = colorPicker.value
 
-        // 色選択イベント
-        colorPicker.addEventListener('input', () => {
-          ctx.strokeStyle = colorPicker.value;
-        });
+      // 色変更
+      colorPicker.addEventListener('input', () => {
+        ctx.strokeStyle = colorPicker.value
+      })
 
-        // スタンプ選択
-        stamps.forEach(btn => {
-          btn.addEventListener('click', () => {
-            if (tool === 'stamp' && currentStamp === btn.dataset.stamp) {
-              // 同じスタンプを再選択したらペンに戻す
-              tool = 'pen';
-              currentStamp = null;
-              btn.classList.remove('selected');
-            } else {
-              tool = 'stamp';
-              currentStamp = btn.dataset.stamp;
-              stamps.forEach(b => b.classList.remove('selected'));
-              btn.classList.add('selected');
-            }
-            // 消しゴムOFF
-            eraserBtn.classList.remove('active');
-            ctx.globalCompositeOperation = 'source-over';
-          });
-        });
-
-        // 消しゴム切り替え
-        eraserBtn.addEventListener('click', () => {
-          if (tool === 'eraser') {
-            tool = 'pen';
-            eraserBtn.classList.remove('active');
-            ctx.globalCompositeOperation = 'source-over';
+      // スタンプ選択
+      stamps.forEach(btn => {
+        btn.addEventListener('click', () => {
+          if(tool==='stamp' && currentStamp===btn.dataset.stamp){
+            tool='pen'; currentStamp=null; btn.classList.remove('selected')
           } else {
-            tool = 'eraser';
-            eraserBtn.classList.add('active');
-            ctx.globalCompositeOperation = 'destination-out';
+            tool='stamp'
+            currentStamp=btn.dataset.stamp
+            stamps.forEach(b=>b.classList.remove('selected'))
+            btn.classList.add('selected')
           }
-          // スタンプ選択解除
-          stamps.forEach(b => b.classList.remove('selected'));
-          currentStamp = null;
-        });
+          eraserBtn.classList.remove('active')
+          ctx.globalCompositeOperation='source-over'
+        })
+      })
 
-        // クリア
-        clearBtn.addEventListener('click', () => {
-          clearCanvas();
-          ws.send(JSON.stringify({ type: 'clear' }));
-        });
-
-        // キャンバスクリック（スタンプ配置）
-        canvas.addEventListener('click', (e) => {
-          if (tool === 'stamp' && currentStamp) {
-            const x = e.offsetX;
-            const y = e.offsetY;
-            drawStamp(currentStamp, x, y);
-            ws.send(JSON.stringify({
-              type: 'stamp',
-              stamp: currentStamp,
-              x, y
-            }));
-            // ペンに戻す
-            tool = 'pen';
-            stamps.forEach(b => b.classList.remove('selected'));
-            currentStamp = null;
-          }
-        });
-
-        // ペン／消しゴム描画
-        canvas.addEventListener('mousedown', e => {
-          if (tool === 'pen' || tool === 'eraser') {
-            drawing = true;
-            ctx.beginPath();
-            ctx.moveTo(e.offsetX, e.offsetY);
-            ws.send(JSON.stringify({
-              type: 'paint',
-              control: 'mousedown',
-              x: e.offsetX,
-              y: e.offsetY
-            }));
-          }
-        });
-        canvas.addEventListener('mousemove', e => {
-          if (drawing && (tool === 'pen' || tool === 'eraser')) {
-            ctx.lineTo(e.offsetX, e.offsetY);
-            ctx.stroke();
-            ws.send(JSON.stringify({
-              type: 'paint',
-              control: 'mousemove',
-              x: e.offsetX,
-              y: e.offsetY
-            }));
-          }
-        });
-        canvas.addEventListener('mouseup', e => {
-          if (drawing) {
-            drawing = false;
-            ctx.beginPath();
-            ws.send(JSON.stringify({
-              type: 'paint',
-              control: 'mouseup',
-              x: e.offsetX,
-              y: e.offsetY
-            }));
-          }
-        });
-        canvas.addEventListener('mouseout', e => {
-          if (drawing) {
-            drawing = false;
-            ctx.beginPath();
-            ws.send(JSON.stringify({
-              type: 'paint',
-              control: 'mouseout',
-              x: e.offsetX,
-              y: e.offsetY
-            }));
-          }
-        });
-
-        // WebSocket 受信
-        ws.onmessage = ev => {
-          const msg = JSON.parse(ev.data);
-          switch (msg.type) {
-            case 'paint':
-              handleRemotePaint(msg);
-              break;
-            case 'stamp':
-              drawStamp(msg.stamp, msg.x, msg.y);
-              break;
-            case 'clear':
-              clearCanvas();
-              break;
-            case 'chat':
-              appendChat(msg);
-              break;
-          }
-        };
-
-        ws.onerror = err => console.error('WebSocket Error:', err);
-
-        // リモート描画ハンドラ
-        function handleRemotePaint({ control, x, y }) {
-          if (control === 'mousedown') {
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-          } else if (control === 'mousemove') {
-            ctx.lineTo(x, y);
-            ctx.stroke();
-          } else if (control === 'mouseup' || control === 'mouseout') {
-            ctx.beginPath();
-          }
+      // 消しゴム切替
+      eraserBtn.addEventListener('click', () => {
+        if(tool==='eraser'){
+          tool='pen'
+          eraserBtn.classList.remove('active')
+          ctx.globalCompositeOperation='source-over'
+        } else {
+          tool='eraser'
+          eraserBtn.classList.add('active')
+          ctx.globalCompositeOperation='destination-out'
         }
+        stamps.forEach(b=>b.classList.remove('selected'))
+        currentStamp=null
+      })
 
-        // スタンプ描画
-        function drawStamp(stamp, x, y) {
-          ctx.save();
-          ctx.font = '32px serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(stamp, x, y + 10);
-          ctx.restore();
+      // クリア
+      clearBtn.addEventListener('click', () => {
+        clearCanvas()
+        ws.send(JSON.stringify({ type:'clear' }))
+      })
+
+      // スタンプ配置
+      canvas.addEventListener('click', e => {
+        if(tool==='stamp' && currentStamp){
+          const x=e.offsetX, y=e.offsetY
+          drawStamp(currentStamp,x,y)
+          ws.send(JSON.stringify({ type:'stamp', stamp:currentStamp, x,y }))
+          // パスをリセットしてペンに戻す
+          ctx.beginPath()
+          tool='pen'
+          stamps.forEach(b=>b.classList.remove('selected'))
+          currentStamp=null
         }
+      })
 
-        // キャンバスクリア
-        function clearCanvas() {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.beginPath();
-        }
-
-        // チャット追加
-        function appendChat({ id, text }) {
-          const ul = document.querySelector('.messages');
-          const li = document.createElement('li');
-          li.textContent =
-            id === myId ? `(${id}) 自分: ${text}` : `${id}: ${text}`;
-          ul.appendChild(li);
-          ul.scrollTop = ul.scrollHeight;
-        }
-
-        // フォーム送信（チャット）
-        document.querySelector('.form').onsubmit = e => {
-          e.preventDefault();
-          const input = document.querySelector('.input');
+      // ペン/消しゴム描画
+      canvas.addEventListener('mousedown', e => {
+        if(tool==='pen'||tool==='eraser'){
+          drawing=true
+          ctx.beginPath()
+          ctx.moveTo(e.offsetX,e.offsetY)
           ws.send(JSON.stringify({
-            type: 'chat',
-            id: myId,
-            text: input.value
-          }));
-          input.value = '';
-          input.focus();
-        };
+            type:'paint', control:'mousedown', x:e.offsetX, y:e.offsetY
+          }))
+        }
+      })
+      canvas.addEventListener('mousemove', e => {
+        if(drawing && (tool==='pen'||tool==='eraser')){
+          ctx.lineTo(e.offsetX,e.offsetY)
+          ctx.stroke()
+          ws.send(JSON.stringify({
+            type:'paint', control:'mousemove', x:e.offsetX, y:e.offsetY
+          }))
+        }
+      })
+      canvas.addEventListener('mouseup', e => {
+        if(drawing){
+          drawing=false
+          ctx.beginPath()
+          ws.send(JSON.stringify({
+            type:'paint', control:'mouseup', x:e.offsetX, y:e.offsetY
+          }))
+        }
+      })
+      canvas.addEventListener('mouseout', e => {
+        if(drawing){
+          drawing=false
+          ctx.beginPath()
+          ws.send(JSON.stringify({
+            type:'paint', control:'mouseout', x:e.offsetX, y:e.offsetY
+          }))
+        }
+      })
+
+      // WebSocket受信
+      ws.onmessage = ev => {
+        const msg = JSON.parse(ev.data)
+        switch(msg.type){
+          case 'paint': handleRemotePaint(msg); break
+          case 'stamp':
+            drawStamp(msg.stamp,msg.x,msg.y)
+            ctx.beginPath()  // ←ここもリセット
+            break
+          case 'clear': clearCanvas(); break
+          case 'chat': appendChat(msg); break
+        }
       }
 
-      main();
-    </script>
-  </body>
+      // 受信描画
+      function handleRemotePaint({control,x,y}){
+        if(control==='mousedown'){
+          ctx.beginPath()
+          ctx.moveTo(x,y)
+        } else if(control==='mousemove'){
+          ctx.lineTo(x,y)
+          ctx.stroke()
+        } else if(control==='mouseup' || control==='mouseout'){
+          ctx.beginPath()
+        }
+      }
+
+      // スタンプ本体
+      function drawStamp(stamp,x,y){
+        ctx.save()
+        ctx.font='32px serif'
+        ctx.textAlign='center'
+        ctx.fillText(stamp,x,y+10)
+        ctx.restore()
+      }
+
+      // 全消去
+      function clearCanvas(){
+        ctx.clearRect(0,0,canvas.width,canvas.height)
+        ctx.beginPath()
+      }
+
+      // チャット追加
+      function appendChat({id,text}){
+        const ul=document.querySelector('.messages')
+        const li=document.createElement('li')
+        li.textContent =
+          id===myId ? `(${id}) 自分: ${text}` : `${id}: ${text}`
+        ul.appendChild(li)
+        ul.scrollTop = ul.scrollHeight
+      }
+
+      // フォーム送信
+      document.querySelector('.form').onsubmit = e => {
+        e.preventDefault()
+        const input = document.querySelector('.input')
+        ws.send(JSON.stringify({
+          type:'chat', id:myId, text:input.value
+        }))
+        input.value=''
+        input.focus()
+      }
+
+      ws.onerror = err => console.error('WebSocket Error:', err)
+    }
+
+    main()
+  </script>
+</body>
 </html>
